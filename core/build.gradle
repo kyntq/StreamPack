@@ -8,6 +8,10 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+
+    packagingOptions {
+        pickFirst 'lib/x86/libcrypto.so'
+    }
 }
 
 ext {
