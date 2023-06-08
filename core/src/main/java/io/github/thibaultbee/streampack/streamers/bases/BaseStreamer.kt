@@ -42,6 +42,7 @@ import io.github.thibaultbee.streampack.streamers.interfaces.IStreamer
 import io.github.thibaultbee.streampack.streamers.settings.BaseStreamerSettings
 import io.github.thibaultbee.streampack.utils.TAG
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 
 /**
@@ -130,12 +131,44 @@ abstract class BaseStreamer(
     private val muxListener = object : IMuxerListener {
         override fun onOutputFrame(packet: Packet) {
             try {
-                endpoint.write(packet)
+                 val customPacket = Packet(packet.buffer, packet.ts, packet.type)
+                customPacket.buffer = mirrorImage(packet.buffer, 720, 1280)
+                endpoint.write(customPacket)
             } catch (e: Exception) {
                 // Send exception to encoder
                 throw StreamPackError(e)
             }
         }
+    }
+
+    fun mirrorImage(inputBuffer: ByteBuffer, width: Int, height: Int): ByteBuffer {
+        // Create a new ByteBuffer for the mirrored image
+        val outputBuffer = ByteBuffer.allocateDirect(inputBuffer.capacity())
+        outputBuffer.order(ByteOrder.nativeOrder())
+
+        // Calculate the stride (number of bytes per row) of the input image
+        val stride = width * 4 // Assuming 4 bytes per pixel (RGBA)
+
+        // Iterate through each row of the input image in reverse order
+        for (row in height - 1 downTo 0) {
+            // Calculate the start index of the current row in the input image
+            val inputStartIndex = row * stride
+
+            // Calculate the start index of the current row in the output image
+            val outputStartIndex = (height - 1 - row) * stride
+
+            // Copy the pixels from the input image to the output image, in reverse order
+            inputBuffer.position(inputStartIndex)
+            inputBuffer.limit(inputStartIndex + stride)
+            outputBuffer.position(outputStartIndex)
+            outputBuffer.put(inputBuffer)
+        }
+
+        // Reset the positions and limits of the input and output buffers
+        inputBuffer.position(0)
+        outputBuffer.position(0)
+
+        return outputBuffer
     }
 
     /**
